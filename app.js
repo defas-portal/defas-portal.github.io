@@ -154,7 +154,7 @@ const toEmail=u=>{u=u.trim().toLocaleLowerCase('en');return u.includes('@')?u:`$
 function dlg(title,sub,body,foot,wide){if(ui.dlgT!==title+'|'+sub){ui.dirty=false;ui.dlgT=title+'|'+sub}$('#ov').innerHTML=`<div class="ov"><div class="dlg${wide?' wide':''}" role="dialog" aria-label="${esc(title)}"><div class="dh"><h2>${esc(title)}${sub?`<small>${esc(sub)}</small>`:''}</h2><button class="x" data-act="close" aria-label="Kapat">×</button></div><div class="db">${body}</div>${foot?`<div class="df">${foot}</div>`:''}</div></div>`;hydrate()}
 // İş fotoğrafları gizli depoda, imzalı bağlantıyla gösterilir
 async function hydrate(){for(const i of $$('img[data-kp]')){const p=i.dataset.kp;i.removeAttribute('data-kp');try{const{data}=await sb.storage.from('kanit').createSignedUrl(p,600);if(data)i.src=data.signedUrl}catch{}}}
-const close=()=>{$('#ov').innerHTML='';ui.modal=null;ui.dirty=false;ui.dlgT=null};
+const close=()=>{try{camStop()}catch{}$('#ov').innerHTML='';ui.modal=null;ui.dirty=false;ui.dlgT=null};
 const val=n=>{const el=$(`#ov [name="${n}"]`);return!el?'':el.type==='checkbox'?el.checked:el.value.trim()};
 const opts=(L,sel,empty)=>(empty!=null?`<option value="">${esc(empty)}</option>`:'')+L.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(sel??'')?'selected':''}>${esc(t)}</option>`).join('');
 const genPw=()=>{const c='abcdefghjkmnpqrstuvwxyz23456789';let s='';const r=crypto.getRandomValues(new Uint32Array(7));r.forEach(x=>s+=c[x%c.length]);return'Df-'+s};
@@ -1109,7 +1109,23 @@ function siteDlg(id){const L=D.qrs||[],s=id?L.find(x=>String(x.id)===String(id))
 function qsRead(){const f=ui.sf;['loc'].forEach(k=>{const e=$(`#ov [name="qs_${k}"]`);if(e)f.loc=e.value});const k=$('#ov [name="qs_kind"]');if(k)f.kind=k.value;const o=$('#ov [name="qs_own"]');if(o)f.own=o.checked}
 async function qrPoster(s){const q=(await loadQr())(0,'H');q.addData(qrUrl(s));q.make();const svg=q.createSvgTag({cellSize:10,margin:2,scalable:true}),w=window.open('','_blank');if(!w)throw new Error('Açılır pencere engellendi, tarayıcıda izin verin');
  w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${esc(s.name)} QR</title><style>@page{size:A4;margin:14mm}body{font-family:Segoe UI,Arial,sans-serif;text-align:center;color:#111;margin:0}img.lg{width:230px;margin-top:6mm}h1{font-size:30px;margin:8mm 0 2mm}h2{font-size:20px;font-weight:600;margin:0 0 6mm;color:#333}.q{width:125mm;height:125mm;margin:0 auto}.q svg{width:100%;height:100%}ol{text-align:left;font-size:17px;line-height:1.6;max-width:150mm;margin:8mm auto 0}p.s{font-size:13px;color:#555;margin-top:6mm}</style></head><body><img class="lg" src="${qrBase()}assets/logo.png" alt="DEFAS"><h1>PERSONEL GİRİŞ – ÇIKIŞ</h1><h2>${esc(s.name)}</h2><div class="q">${svg}</div><ol><li>Telefonunuzun kamerasıyla QR kodu okutun.</li><li>Açılan sayfada kendi hesabınızla giriş yapın (bir kez).</li><li>Konum iznine <b>İzin ver</b> deyin. Giriş ve çıkışta tekrar okutun.</li></ol><p class="s">${s.kind==='fabrika'?'Süresiz':'Geçerlilik: '+esc(dmy(s.valid_from))+' – '+esc(s.valid_to?dmy(s.valid_to):'süresiz')}${s.start_time?' · Çalışma saatleri '+hh(s.start_time)+'–'+hh(s.end_time):''} · Okutma sadece bu noktanın ${s.radius_m} m çevresinde ve kendi telefonunuzla kabul edilir.</p><script>window.onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`);w.document.close();winBar(w)}
-async function doQr(){const t=sessionStorage.getItem('qr');if(!t)return;sessionStorage.removeItem('qr');
+// Uygulama içinden QR okutma: kamera açılır, DEFAS QR kodu (kapı / şantiye / kapı ekranı) okununca giriş-çıkış kaydedilir
+let jsqrLib;const loadJsQR=()=>jsqrLib||(jsqrLib=new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';s.onload=()=>ok(window.jsQR);s.onerror=()=>{jsqrLib=null;no(new Error('QR okuyucu yüklenemedi, internet bağlantınızı kontrol edin'))};document.head.append(s)}));
+const camStop=()=>{try{ui.cam&&ui.cam.getTracks().forEach(t=>t.stop())}catch{}ui.cam=null;clearTimeout(ui.camT)};
+const qrCard=()=>S.me&&!S.me.kiosk&&S.me.status==='aktif'?`<div class="card pad" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">${ic('qr',30)}<span style="flex:1;min-width:180px"><b>Giriş / çıkış</b><br><small style="color:var(--ink3)">Kapıdaki veya şantiyedeki QR kodu buradan okutun</small></span><button class="btn p" data-act="qrscan">${ic('cam',18)}QR okut</button></div>`:'';
+{const H=PAGE.home,M=PAGE.mytime,B=PAGE.boss;PAGE.home=()=>qrCard()+H();PAGE.mytime=()=>qrCard()+M();PAGE.boss=()=>qrCard()+B()}
+async function qrScan(){
+ if(!navigator.mediaDevices?.getUserMedia)throw new Error('Bu tarayıcı kamerayı desteklemiyor. Telefonun kendi kamerasıyla okutun');
+ dlg('QR okut','Kodu çerçevenin içine getirin',`<div style="position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:1/1;max-width:420px;margin:0 auto"><video id="qrv" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:14%;border:3px solid rgba(255,255,255,.85);border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.25)"></div></div><p id="qrm" style="text-align:center;color:var(--ink3);margin:10px 0 0">Kamera açılıyor… İzin sorulursa “İzin ver” deyin.</p>`,`<button class="btn" data-act="close">Kapat</button>`);
+ let jsQR;try{[jsQR,ui.cam]=await Promise.all([loadJsQR(),navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})])}catch(e){camStop();close();throw new Error(e&&e.name==='NotAllowedError'?'Kamera izni verilmedi. Ayarlar > Safari (veya uygulama) > Kamera iznini açın':e.message||'Kamera açılamadı')}
+ const v=$('#qrv');if(!v){camStop();return}v.srcObject=ui.cam;try{await v.play()}catch{}
+ const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});const m=$('#qrm');if(m)m.textContent='QR kodu çerçeveye getirin';
+ const tick=()=>{if(!ui.cam||!$('#qrv'))return camStop();
+  if(v.readyState>=2&&v.videoWidth){const w=Math.min(720,v.videoWidth),h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cx.drawImage(v,0,0,w,h);const r=jsQR(cx.getImageData(0,0,w,h).data,w,h,{inversionAttempts:'dontInvert'});
+   if(r&&r.data){let t=null;try{t=new URL(r.data,location.href).searchParams.get('qr')}catch{}
+    if(t){camStop();close();sessionStorage.setItem('qr',t);doQr();return}
+    if(m)m.innerHTML='<b style="color:var(--bad)">Bu bir DEFAS giriş-çıkış kodu değil.</b> Kapıdaki / şantiyedeki kodu okutun.'}}
+  ui.camT=setTimeout(tick,180)};tick()}async function doQr(){const t=sessionStorage.getItem('qr');if(!t)return;sessionStorage.removeItem('qr');
  try{let a={p_token:t};if(t.startsWith('P.')){dlg('QR okutma','',`<div class="okbox"><div class="ring">${ic('clock',44)}</div><b>Konumunuz alınıyor…</b><span>Konum izni sorulursa “İzin ver” deyin.</span></div>`,'');const c=await getPos();a={p_token:t,p_lat:c.latitude,p_lng:c.longitude,p_acc:c.accuracy,p_device:devId()}}
   const r=await rpc('qr_punch',a);drop('mypunch','my','board');render();
   dlg('QR okutma',r.site||'',`<div class="okbox"><div class="ring ${r.warn?'warn':'ok'}">${ic('check',44)}</div><b>${r.kind==='giris'?'Giriş':'Çıkış'} kaydedildi</b><span style="font-size:22px;font-weight:700">${tm(r.at)}</span><span>${r.kind==='giris'?'İyi çalışmalar':'İyi akşamlar'}, ${esc(String(r.name).split(' ')[0])}</span>${r.projects?`<div class="msg info" style="margin-top:6px"><b>Bugünkü çalışma listen:</b> ${esc(r.projects)}</div>`:''}${r.dup?'<div class="msg info">Bu okutma az önce zaten kaydedilmişti.</div>':''}${r.warn?`<div class="msg warn">Belge uyarısı: ${esc(r.warn)}. İK ile görüş.</div>`:''}</div>`,`<button class="btn p" data-act="close">Tamam</button>`)}
@@ -1506,6 +1522,7 @@ Object.assign(A,{
   close();toast('Oryantasyon konuları kaydedildi')},
  async orientstart(d){const n=await rpc('orient_start',{p_emp:d.id});toast(n?`${n} oryantasyon görevi açıldı`:'Açılacak yeni konu yok');const s=$('#emport');if(s){const L=await rpc('orient_status',{p_emp:d.id});s.outerHTML=orientHtml(d.id,L||[],true)}}
 });
+A.qrscan=qrScan;
 Object.assign(A,{
  eqt(d){ui.eqt=d.k;ui.eqsel=new Set();render()},
  eqdlg(d){eqDlg(d.id)},
