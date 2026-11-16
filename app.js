@@ -1081,7 +1081,15 @@ async function kioskTick(){const now=new Date(),kc=$('#kc');if(!kc)return;kc.tex
  if(k%10===0){try{const F=await rpc('kiosk_feed');$('#kf').innerHTML=F.map(x=>`<span class="${x.kind==='giris'?'g':'c'}">${esc(x.full_name)} · ${x.kind==='giris'?'giriş':'çıkış'} ${tm(x.at)}</span>`).join('')}catch{}}}
 /* ---------- Kalıcı / geçici QR noktaları (kapıya asılan basılı kod) ---------- */
 // Telefonun konumu: basılı kodun fotoğrafı evden okutulamasın diye her okutmada istenir
-const getPos=()=>new Promise((ok,no)=>{if(!navigator.geolocation)return no(new Error('Bu tarayıcı konum vermiyor. Telefonun kendi tarayıcısıyla (Chrome / Safari) açın'));navigator.geolocation.getCurrentPosition(p=>ok(p.coords),e=>no(new Error(e.code===1?'Konum izni verilmedi. Tarayıcı ayarlarından bu siteye konum izni verip QR kodu yeniden okutun':'Konum alınamadı. Telefonun konum (GPS) ayarı açık olmalı; açık alanda yeniden okutun')),{enableHighAccuracy:true,timeout:20000,maximumAge:0})});
+// Konum: önce hassas (GPS) denenir, olmazsa ağ konumu / son 2 dk'lık konum kabul edilir. Hata olursa telefona göre hangi ayarın açılacağı yazılır.
+const isIOSdev=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const geoHelp=c=>isIOSdev()?(c===1?'iPhone ayarı: <b>Ayarlar → Gizlilik ve Güvenlik → Konum Servisleri</b> açık olsun. Aynı sayfanın altında <b>Safari Web Siteleri</b> → <b>Uygulamayı Kullanırken</b> seçin ve <b>Tam Konum</b>\'u açın. Sonra QR\'ı yeniden okutun.':'iPhone\'da <b>Ayarlar → Gizlilik ve Güvenlik → Konum Servisleri</b> açık olmalı; <b>Safari Web Siteleri</b>\'nde <b>Tam Konum</b> açık olsun. Kapalı alandaysanız kapıya / pencereye yaklaşıp tekrar deneyin.')
+ :(c===1?'Telefonda: <b>Ayarlar → Konum</b> açık olsun. Chrome\'da adres çubuğundaki kilit simgesi → <b>İzinler → Konum → İzin ver</b>. Sonra QR\'ı yeniden okutun.':'Telefonun <b>Konum</b> ayarı açık olmalı (bildirim çubuğundan açılabilir). Kapalı alandaysanız kapıya / pencereye yaklaşıp tekrar deneyin.');
+const geoOnce=o=>new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(p.coords),no,o));
+const getPos=async()=>{if(!navigator.geolocation)throw new Error('Bu tarayıcı konum vermiyor. Telefonun kendi tarayıcısıyla (Safari / Chrome) açın');
+ let err;try{return await geoOnce({enableHighAccuracy:true,timeout:12000,maximumAge:0})}catch(e){err=e}
+ if(err.code!==1){try{return await geoOnce({enableHighAccuracy:false,timeout:15000,maximumAge:120000})}catch(e){err=e}}
+ const x=new Error(err.code===1?'Konum izni kapalı.':'Telefonun konumu bulunamadı.');x.html=geoHelp(err.code);throw x};
 // Telefon kimliği: personel ilk okuttuğu telefona bağlanır (başkasının telefonundan okutma engellenir)
 const devId=()=>{let d='';try{d=localStorage.getItem('defas_dev')||'';if(!d){d=crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2));localStorage.setItem('defas_dev',d)}}catch{}return d};
 const canQr=()=>S.me.role==='gm'||S.me.role==='mgr'||can('ayar')||can('qr');
@@ -1133,7 +1141,9 @@ async function qrScan(){
    dlg('QR okutma','',`<div class="okbox"><div class="ring">${ic('clock',44)}</div><b>Konumunuz alınıyor…</b><span>Telefon konum izni sorarsa <b>İzin ver</b> deyin.</span></div>`,'');
    const c=await getPos();r=await rpc('qr_punch',{...a,p_lat:c.latitude,p_lng:c.longitude,p_acc:c.accuracy})}drop('mypunch','my','board');render();
   dlg('QR okutma',r.site||'',`<div class="okbox"><div class="ring ${r.warn?'warn':'ok'}">${ic('check',44)}</div><b>${r.kind==='giris'?'Giriş':'Çıkış'} kaydedildi</b><span style="font-size:22px;font-weight:700">${tm(r.at)}</span><span>${r.kind==='giris'?'İyi çalışmalar':'İyi akşamlar'}, ${esc(String(r.name).split(' ')[0])}</span>${r.projects?`<div class="msg info" style="margin-top:6px"><b>Bugünkü çalışma listen:</b> ${esc(r.projects)}</div>`:''}${r.dup?'<div class="msg info">Bu okutma az önce zaten kaydedilmişti.</div>':''}${r.warn?`<div class="msg warn">Belge uyarısı: ${esc(r.warn)}. İK ile görüş.</div>`:''}</div>`,`<button class="btn p" data-act="close">Tamam</button>`)}
- catch(e){dlg('QR okutma','',`<div class="okbox"><div class="ring bad">${ic('x',44)}</div><b>Kaydedilemedi</b><span>${esc(trErr(e.message))}</span></div>`,`<button class="btn p" data-act="close">Tamam</button>`)}}
+ catch(e){const m=trErr(e.message),help=e.html||(/hassas değil|uzakta/.test(m)?geoHelp(2):'');ui.lastQr=t;
+  dlg('QR okutma','',`<div class="okbox"><div class="ring bad">${ic('x',44)}</div><b>Kaydedilemedi</b><span>${esc(m)}</span>${help?`<div class="msg warn" style="text-align:left;margin-top:8px">${help}</div>`:''}</div>`,`<button class="btn" data-act="close">Kapat</button><button class="btn p" data-act="qrretry">Tekrar dene</button>`)}}
+function qrRetry(){const t=ui.lastQr;close();if(t){sessionStorage.setItem('qr',t);doQr()}}
 
 /* =====================================================================
    İŞLEMLER
@@ -1526,7 +1536,7 @@ Object.assign(A,{
   close();toast('Oryantasyon konuları kaydedildi')},
  async orientstart(d){const n=await rpc('orient_start',{p_emp:d.id});toast(n?`${n} oryantasyon görevi açıldı`:'Açılacak yeni konu yok');const s=$('#emport');if(s){const L=await rpc('orient_status',{p_emp:d.id});s.outerHTML=orientHtml(d.id,L||[],true)}}
 });
-A.qrscan=qrScan;
+A.qrscan=qrScan;A.qrretry=qrRetry;
 Object.assign(A,{
  eqt(d){ui.eqt=d.k;ui.eqsel=new Set();render()},
  eqdlg(d){eqDlg(d.id)},
