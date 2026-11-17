@@ -57,7 +57,7 @@ const TABS=[['boss','Yönetim özeti','Genel','Patron paneli: bugün, projeler, 
 const tabPerms=tabs=>{const T=new Set(tabs||[]),o=[];if(['people','matrix','expiry'].some(k=>T.has(k)))o.push('personel');if(T.has('puantaj'))o.push('puantaj');if(T.has('plist'))o.push('proje');if(T.has('settings'))o.push('ayar');if(T.has('qrsites'))o.push('qr');if(T.has('equip'))o.push('depo');if(['tasks','jpanel','jrep'].some(k=>T.has(k)))o.push('gorev');return o};
 const myGroup=()=>S.me&&(S.groups||[]).find(g=>g.id===S.me.group_id);
 const can=p=>!!S.me&&(S.me.role==='gm'||(S.me.perms||[]).includes(p)||tabPerms(myGroup()?.tabs).includes(p));
-const tabOk=k=>k==='home'||S.me.role==='gm'||!myGroup()||myGroup().tabs.includes(k);
+const tabOk=k=>k==='home'||k==='news'||S.me.role==='gm'||!myGroup()||myGroup().tabs.includes(k);
 const leads=()=>S.me.role!=='w'||tabOk('today')&&!!myGroup()||can('personel')||can('puantaj')||S.people.some(p=>p.manager_id===S.me.id&&p.status!=='ayrildi');
 const wdOf=s=>S.workDays.find(w=>w.dow===dow(s));
 const holOf=s=>S.hol.get(s);
@@ -75,7 +75,7 @@ const loading=()=>'<div class="card empty">Yükleniyor…</div>';
 async function loadPeople(){S.people=await all(()=>sb.from('personel_ozet').select('*').order('full_name'))}
 async function loadBase(){
  const me=await rpc('whoami');S.me=me&&(me.id||me.kiosk)?me:null;S.reg=null;if(!S.me){S.reg=await rpc('my_registration').catch(()=>null)||null;return}if(S.me.kiosk||S.me.status==='ayrildi')return;
- sb.from('form_flows').select('*').then(r=>{S.flows=r.data||[]});FEATURES.equip&&sb.from('equipment').select('id',{count:'exact',head:true}).eq('holder_id',S.me.id).then(r=>{const n=r?.count||0;if(n!==D.myeqn){D.myeqn=n;if(n&&S.me)render()}},()=>{});
+ sb.from('form_flows').select('*').then(r=>{S.flows=r.data||[]});rpc('news_unread').then(n=>{if(n!==D.newsN){D.newsN=n;if(S.me)render()}}).catch(()=>{});FEATURES.equip&&sb.from('equipment').select('id',{count:'exact',head:true}).eq('holder_id',S.me.id).then(r=>{const n=r?.count||0;if(n!==D.myeqn){D.myeqn=n;if(n&&S.me)render()}},()=>{});
  S.groups=must(await sb.from('access_groups').select('*').order('sort'));
  const[dt,st,wd,ho,no,pr,po,de]=await Promise.all([sb.from('doc_types').select('*').order('sort'),sb.from('settings').select('*').maybeSingle(),sb.from('work_days').select('*').order('dow'),sb.from('holidays').select('*').order('day'),
   sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(60),sb.from('projects').select('code,name,firm,status,special,active').order('code'),sb.from('positions').select('*').order('name'),sb.from('departments').select('*').order('sort'),loadPeople()]);
@@ -92,7 +92,7 @@ function sumAtt(L){const t={n:0,o:0,h:0,w:0,D:0,E:0,Y:0,R:0,U:0,M:0,S:0};L.forEa
 function toast(t,sub){const e=document.createElement('div');e.innerHTML=`${esc(t)}${sub?`<small>${esc(sub)}</small>`:''}`;$('#toast').append(e);setTimeout(()=>e.remove(),4500)}
 // Menü; '§' satırları kenar çubuğunda bölüm başlığıdır
 function navs(){const L=[],sec=t=>L.push(['§',t]),me=S.me.id,mg=isMgr(),apN=jobApprovals().length;
- if(S.me.role==='gm'||(myGroup()?.tabs||[]).includes('boss'))L.push(['boss','Yönetim özeti','chart']);L.push(['home','Ana sayfa','home']);sec('Benim işlerim');L.push(['jobs','Görevlerim','list'],['forms','Formlar','doc'],['mytime','Puantajım','clock'],['mydocs','Belgelerim','doc']);if(FEATURES.equip&&(D.myeqn||0)>0)L.push(['myeq','Zimmetim','list']);
+ if(S.me.role==='gm'||(myGroup()?.tabs||[]).includes('boss'))L.push(['boss','Yönetim özeti','chart']);L.push(['home','Ana sayfa','home'],['news','Duyurular','bell',D.newsN||'']);sec('Benim işlerim');L.push(['jobs','Görevlerim','list'],['forms','Formlar','doc'],['mytime','Puantajım','clock'],['mydocs','Belgelerim','doc']);if(FEATURES.equip&&(D.myeqn||0)>0)L.push(['myeq','Zimmetim','list']);
  const bk=[];if(mg||apN||(D.tasks||[]).some(t=>t.approver_id===me))bk.push(['japp','İş onayı','check',apN]);
  if(mg)bk.push(['jpanel','Görev paneli','chart'],['tasks','Görevler','list'],['jrep','Görev raporu','chart']);
  if(bk.length){sec('Bakım ve görevler');L.push(...bk)}
@@ -111,7 +111,7 @@ function navTree(nv,v){const G=[];let cur=null;nv.forEach(x=>{if(x[0]==='§'){cu
  const btn=(x,sub)=>`<button class="${v===x[0]?'on':''}${sub?' sub':''}" data-go="${x[0]}">${ic(x[2])}${x[1]}${x[3]?`<span class="n">${x[3]}</span>`:''}</button>`;
  return G.map(g=>{if(!g.t)return g.items.map(x=>btn(x)).join('');if(g.items.length===1)return btn(g.items[0]);const act=g.items.some(x=>x[0]===v),op=act||(st[g.t]??g.t==='Benim işlerim'),badge=g.items.reduce((s,x)=>s+(+x[3]||0),0);
   return`<div class="grp${op?' open':''}"><button class="gh" data-act="navsec" data-k="${esc(g.t)}" aria-expanded="${op}"><span class="car" aria-hidden="true">›</span>${esc(g.t)}${!op&&badge?`<span class="n">${badge}</span>`:''}</button><div class="gi">${g.items.map(x=>btn(x,1)).join('')}</div></div>`}).join('')}
-const TITLES={vehicles:'Şirket araçları',equip:'Ekipmanlar ve zimmet',myeq:'Zimmetim',boss:'Yönetim özeti',perms:'Yetki ekranı',jobs:'Görevlerim',japp:'İş onayı',jpanel:'Görev paneli',tasks:'Görevler',qrsites:'QR noktaları',jrep:'Görev raporu',forms:'Formlar',matrix:'Belge matrisi',home:'Ana sayfa',mytime:'Puantajım',today:'Yoklama',people:'Personel',expiry:'Belge takibi',puantaj:'Puantaj',plist:'Proje çalışma listesi',mydocs:'Belgelerim',settings:'Ayarlar',notif:'Bildirimler'};
+const TITLES={news:'Duyurular',vehicles:'Şirket araçları',equip:'Ekipmanlar ve zimmet',myeq:'Zimmetim',boss:'Yönetim özeti',perms:'Yetki ekranı',jobs:'Görevlerim',japp:'İş onayı',jpanel:'Görev paneli',tasks:'Görevler',qrsites:'QR noktaları',jrep:'Görev raporu',forms:'Formlar',matrix:'Belge matrisi',home:'Ana sayfa',mytime:'Puantajım',today:'Yoklama',people:'Personel',expiry:'Belge takibi',puantaj:'Puantaj',plist:'Proje çalışma listesi',mydocs:'Belgelerim',settings:'Ayarlar',notif:'Bildirimler'};
 const PAGE={};
 function render(){
  if(!sb){$('#root').innerHTML=`<div class="login"><div class="lbox"><img src="assets/logo.png" alt="DEFAS Mühendislik"><p>Kurulum bekleniyor: config.js dosyasına Supabase bilgileri girilmeli.</p></div></div>`;return}
@@ -153,7 +153,7 @@ const toEmail=u=>{u=u.trim().toLocaleLowerCase('en');return u.includes('@')?u:`$
 /* pencere */
 function dlg(title,sub,body,foot,wide){if(ui.dlgT!==title+'|'+sub){ui.dirty=false;ui.dlgT=title+'|'+sub}$('#ov').innerHTML=`<div class="ov"><div class="dlg${wide?' wide':''}" role="dialog" aria-label="${esc(title)}"><div class="dh"><h2>${esc(title)}${sub?`<small>${esc(sub)}</small>`:''}</h2><button class="x" data-act="close" aria-label="Kapat">×</button></div><div class="db">${body}</div>${foot?`<div class="df">${foot}</div>`:''}</div></div>`;hydrate()}
 // İş fotoğrafları gizli depoda, imzalı bağlantıyla gösterilir
-async function hydrate(){for(const i of $$('img[data-kp]')){const p=i.dataset.kp;i.removeAttribute('data-kp');try{const{data}=await sb.storage.from('kanit').createSignedUrl(p,600);if(data)i.src=data.signedUrl}catch{}}}
+async function hydrate(){for(const i of $$('img[data-np]')){const p=i.dataset.np;i.removeAttribute('data-np');try{const{data}=await sb.storage.from('duyurular').createSignedUrl(p,600);if(data)i.src=data.signedUrl}catch{}}for(const i of $$('img[data-kp]')){const p=i.dataset.kp;i.removeAttribute('data-kp');try{const{data}=await sb.storage.from('kanit').createSignedUrl(p,600);if(data)i.src=data.signedUrl}catch{}}}
 const close=()=>{try{camStop()}catch{}$('#ov').innerHTML='';ui.modal=null;ui.dirty=false;ui.dlgT=null};
 const val=n=>{const el=$(`#ov [name="${n}"]`);return!el?'':el.type==='checkbox'?el.checked:el.value.trim()};
 const opts=(L,sel,empty)=>(empty!=null?`<option value="">${esc(empty)}</option>`:'')+L.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(sel??'')?'selected':''}>${esc(t)}</option>`).join('');
@@ -1575,6 +1575,53 @@ Object.assign(A,{vehdlg(d){vehDlg(d.id||null)},
   const row={plate,brand:val('vb')||null,model:val('vm')||null,model_year:+val('vy')||null,sigorta_end:val('vs'),kasko_end:val('vk'),muayene_end:val('vmu')||null,note:val('vn')||null,ruhsat_path:path,active:v?!!val('va'):true};
   must(v?await sb.from('vehicles').update(row).eq('id',v.id):await sb.from('vehicles').insert(row));drop('veh');D.vehs=null;close();render();toast(v?'Araç güncellendi':'Araç eklendi')},
  async vehdel(d){const v=(D.veh||[]).find(x=>String(x.id)===String(d.id));if(!v||!confirm(v.plate+' plakalı araç listeden silinsin mi? Bu işlem geri alınamaz. (Geçmiş araç formları etkilenmez.)'))return;must(await sb.from('vehicles').delete().eq('id',v.id));drop('veh');D.vehs=null;close();render();toast('Araç silindi')}});
+/* Duyurular: İK yayınlar (aylık yemek listesi, genel / İK / İSG / etkinlik duyuruları), herkes görür. Ek: görsel, PDF veya Word. */
+const NEWS_K={yemek:['ok','Yemek listesi'],genel:['info','Genel duyuru'],ik:['info','İK duyurusu'],isg:['warn','İSG'],etkinlik:['gray','Etkinlik']};
+const newsKind=f=>!f?'':/^image\//.test(f.type||'')?'img':/pdf/.test(f.type||'')||/\.pdf$/i.test(f.name)?'pdf':'doc';
+const loadNews=async()=>{const[a,r]=await Promise.all([all(()=>sb.from('announcements').select('*').order('created_at',{ascending:false}).limit(200)),all(()=>sb.from('announcement_reads').select('ann_id,employee_id'))]);
+ const me=S.me.id,mine=new Set((r||[]).filter(x=>x.employee_id===me).map(x=>x.ann_id)),cnt={};(r||[]).forEach(x=>cnt[x.ann_id]=(cnt[x.ann_id]||0)+1);return{list:a||[],mine,cnt}};
+const newsLive=a=>!a.valid_to||a.valid_to>=TODAY;
+function newsFile(a,big){if(!a.file_path)return'';const t=a.file_type||'';
+ if(t==='img')return`<img class="ph" data-np="${esc(a.file_path)}" alt="${esc(a.title)}" style="${big?'max-height:none':''};cursor:zoom-in" data-act="newsopen" data-p="${esc(a.file_path)}">`;
+ return`<div class="tools" style="margin:8px 0 0"><span>${ic('doc',18)} ${esc(a.file_name||'Ek dosya')}</span><span class="grow"></span>${t==='pdf'?`<button class="btn sm p" data-act="newsopen" data-p="${esc(a.file_path)}">${ic('eye',16)}Aç</button>`:''}<button class="btn sm" data-act="newsdl" data-p="${esc(a.file_path)}" data-n="${esc(a.file_name||'duyuru')}">${ic('down',16)}İndir</button></div>`}
+function newsCardHtml(a,N,hr){const unread=!N.mine.has(a.id),k=NEWS_K[a.kind]||NEWS_K.genel;
+ return`<div class="card pad" style="${unread?'border-left:4px solid var(--blue)':''}"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">${pill(k)}${a.pinned?pill(['warn','Sabit']):''}${unread?pill(['info','Yeni']):''}<span class="grow"></span><small style="color:var(--ink3)">${esc(dmy(a.created_at.slice(0,10)))}${a.valid_to?' · '+esc(dmy(a.valid_to))+' tarihine kadar':''}</small></div>
+ <h3 style="margin:0 0 6px;font-size:17px">${esc(a.title)}</h3>${a.body?`<div style="white-space:pre-wrap;line-height:1.55">${esc(a.body)}</div>`:''}${newsFile(a,a.kind==='yemek')}
+ ${hr?`<div class="tools" style="margin:10px 0 0;border-top:1px solid var(--line);padding-top:8px"><small style="color:var(--ink3)">${N.cnt[a.id]||0} kişi okudu</small><span class="grow"></span><button class="btn sm" data-act="newsdlg" data-id="${a.id}">Düzenle</button><button class="btn sm bad" data-act="newsdel" data-id="${a.id}">Sil</button></div>`:''}</div>`}
+PAGE.news=()=>{const N=need('news',loadNews);if(N===undefined)return loading();const hr=can('personel'),L=N.list,live=L.filter(newsLive),old=L.filter(a=>!newsLive(a));
+ const food=live.find(a=>a.kind==='yemek'),pin=live.filter(a=>a!==food&&a.pinned),rest=live.filter(a=>a!==food&&!a.pinned);
+ const un=L.filter(a=>!N.mine.has(a.id)).map(a=>a.id);if(un.length&&!ui.newsMarking){ui.newsMarking=1;rpc('news_read',{p_ids:un}).then(()=>{un.forEach(i=>N.mine.add(i));D.newsN=0;ui.newsMarking=0;setTimeout(()=>{if(S.view==='news')render()},4000)}).catch(()=>{ui.newsMarking=0})}
+ return`${hr?`<div class="tools"><button class="btn p" data-act="newsdlg">${ic('plus',18)}Duyuru ekle</button><button class="btn" data-act="newsdlg" data-k="yemek">${ic('plus',18)}Yemek listesi yükle</button></div>`:''}
+ ${food?`<div class="h" style="margin:4px 0 6px"><h2 style="margin:0">Yemek listesi</h2></div>${newsCardHtml(food,N,hr)}`:''}
+ ${pin.length||rest.length?`<div class="h" style="margin:14px 0 6px"><h2 style="margin:0">Duyurular</h2></div>${[...pin,...rest].map(a=>newsCardHtml(a,N,hr)).join('')}`:food?'':'<div class="card empty">Henüz duyuru yok</div>'}
+ ${old.length?`<details style="margin-top:14px"><summary style="cursor:pointer;color:var(--ink2)">Geçmiş duyurular (${old.length})</summary>${old.slice(0,30).map(a=>newsCardHtml(a,N,hr)).join('')}</details>`:''}
+ ${hr?'<div class="sample">Yemek listesini her ay görsel (fotoğraf/ekran görüntüsü) veya PDF olarak yüklerseniz telefonda doğrudan görünür; Word dosyası indirilerek açılır. Yayınlarken "Herkese bildirim gönder" işaretliyse tüm personelin telefonuna bildirim gider.</div>':''}`};
+const newsBadge=()=>D.newsN?`<div class="card pad" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-color:var(--blue)">${ic('bell',26)}<span style="flex:1;min-width:180px"><b>${D.newsN} yeni duyuru</b><br><small style="color:var(--ink3)">Yemek listesi ve İK duyuruları</small></span><button class="btn p" data-go="news">Duyurulara git</button></div>`:'';
+{const H=PAGE.home;PAGE.home=()=>newsBadge()+H()}
+function newsDlg(id,kind){const a=id?((D.news&&D.news.list)||[]).find(x=>x.id===id):null;ui.modal=[newsDlg,id,kind];const k=a?.kind||kind||'genel';
+ const eom=(()=>{const d=new Date(TODAY+'T00:00:00');return iso(new Date(d.getFullYear(),d.getMonth()+1,0))})();
+ dlg(a?'Duyuruyu düzenle':k==='yemek'?'Yemek listesi yükle':'Duyuru ekle','Tüm personel görür',`<div class="two"><label class="f">Tür<select class="inp" name="nk">${opts(Object.entries(NEWS_K).map(([v,[,t]])=>[v,t]),k)}</select></label><label class="f">Yayında kalacağı son gün${k==='yemek'?'':' (boşsa süresiz)'}<input class="inp" type="date" name="nv" value="${esc(a?a.valid_to||'':k==='yemek'?eom:'')}"></label></div>
+ <label class="f">Başlık<input class="inp" name="nt" value="${esc(a?.title||(k==='yemek'?trM(ymOf(TODAY))+' yemek listesi':''))}" placeholder="Ör. Kasım 2026 yemek listesi"></label>
+ <label class="f">Açıklama (isteğe bağlı)<textarea class="inp" name="nb" rows="4" placeholder="Duyuru metni">${esc(a?.body||'')}</textarea></label>
+ <label class="f">Ek dosya: görsel, PDF veya Word (en fazla 20 MB)${a?.file_path?` — şu an: ${esc(a.file_name||'ek')}; değiştirmek için yeni dosya seçin`:''}<input class="inp" type="file" name="nf" accept="image/*,application/pdf,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label>
+ ${a?.file_path?`<label class="tog"><span>Eki kaldır</span><input type="checkbox" name="nfx"></label>`:''}
+ <label class="tog"><span>En üstte sabit dursun</span><input type="checkbox" name="np" ${a?.pinned?'checked':''}></label>
+ ${a?'':`<label class="tog"><span>Herkese bildirim gönder (telefon bildirimi dahil)</span><input type="checkbox" name="nn" checked></label>`}`,
+ `<button class="btn" data-act="close">Vazgeç</button><button class="btn p" data-act="newssave" data-id="${a?.id||''}">${a?'Kaydet':'Yayınla'}</button>`,true)}
+async function newsImg(f){if(f.size<1.5*1048576)return f;return await new Promise(ok=>{const r=new FileReader;r.onload=()=>{const i=new Image;i.onload=()=>{const k=Math.min(1,2200/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(i,0,0,c.width,c.height);c.toBlob(b=>ok(b?new File([b],f.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):f),'image/jpeg',.85)};i.onerror=()=>ok(f);i.src=r.result};r.readAsDataURL(f)})}
+async function newsUrl(p,dl){const{data,error}=await sb.storage.from('duyurular').createSignedUrl(p,600,dl?{download:dl}:undefined);if(error)throw new Error(trErr(error.message));return data.signedUrl}
+Object.assign(A,{newsdlg(d){newsDlg(d.id||null,d.k)},
+ async newssave(d){const a=d.id?((D.news&&D.news.list)||[]).find(x=>x.id===d.id):null,title=val('nt');if(!title)throw new Error('Başlık yazın');
+  let f=$('#ov [name="nf"]').files[0];if(f&&f.size>20*1048576)throw new Error('Dosya 20 MB sınırını aşıyor');if(!a&&!f&&!val('nb'))throw new Error('Açıklama yazın veya dosya ekleyin');
+  const row={kind:val('nk'),title,body:val('nb')||null,pinned:!!val('np'),valid_to:val('nv')||null};
+  if(f){const t=newsKind(f);if(t==='img')f=await newsImg(f);const p=`${ymOf(TODAY)}/${Date.now()}-${(f.name||'dosya').replace(/[^\w.\-]+/g,'_').slice(-60)}`;
+   must(await sb.storage.from('duyurular').upload(p,f,{contentType:f.type||'application/octet-stream'}));Object.assign(row,{file_path:p,file_name:f.name,file_type:t});if(a?.file_path)sb.storage.from('duyurular').remove([a.file_path]).catch(()=>{})}
+  else if(a&&val('nfx')){Object.assign(row,{file_path:null,file_name:null,file_type:null});sb.storage.from('duyurular').remove([a.file_path]).catch(()=>{})}
+  let id=a?.id;if(a)must(await sb.from('announcements').update(row).eq('id',a.id));else id=must(await sb.from('announcements').insert(row).select('id').single()).id;
+  const notify=!a&&val('nn');close();drop('news');render();if(notify){const n=await rpc('announce',{p_id:id});toast('Duyuru yayınlandı',n+' kişiye bildirim gönderildi')}else toast(a?'Duyuru güncellendi':'Duyuru yayınlandı')},
+ async newsdel(d){const a=((D.news&&D.news.list)||[]).find(x=>x.id===d.id);if(!a||!confirm('"'+a.title+'" duyurusu silinsin mi? Bu işlem geri alınamaz.'))return;must(await sb.from('announcements').delete().eq('id',a.id));if(a.file_path)sb.storage.from('duyurular').remove([a.file_path]).catch(()=>{});drop('news');render();toast('Duyuru silindi')},
+ async newsopen(d){const w=window.open('about:blank','_blank');try{const u=await newsUrl(d.p);if(w)w.location=u;else location.href=u}catch(e){w&&w.close();throw e}},
+ async newsdl(d){const u=await newsUrl(d.p,d.n);const x=document.createElement('a');x.href=u;x.download=d.n;document.body.append(x);x.click();x.remove()}});
 Object.assign(A,{
  eqt(d){ui.eqt=d.k;ui.eqsel=new Set();render()},
  eqdlg(d){eqDlg(d.id)},
