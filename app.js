@@ -1236,7 +1236,7 @@ async function qrScan(){
    dlg('QR okutma','',`<div class="okbox"><div class="ring">${ic('clock',44)}</div><b>Konumunuz alınıyor…</b><span>Telefon konum izni sorarsa <b>İzin ver</b> deyin.</span></div>`,'');
    const c=await getPos();r=await rpc('qr_punch',{...a,p_lat:c.latitude,p_lng:c.longitude,p_acc:c.accuracy})}drop('mypunch','my','board');render();
   dlg('QR okutma',r.site||'',`<div class="okbox"><div class="ring ${r.warn?'warn':'ok'}">${ic('check',44)}</div><b>${r.kind==='giris'?'Giriş':'Çıkış'} kaydedildi</b><span style="font-size:22px;font-weight:700">${tm(r.at)}</span><span>${r.kind==='giris'?'İyi çalışmalar':'İyi akşamlar'}, ${esc(String(r.name).split(' ')[0])}</span>${r.projects?`<div class="msg info" style="margin-top:6px"><b>Bugünkü çalışma listen:</b> ${esc(r.projects)}</div>`:''}${r.dup?'<div class="msg info">Bu okutma az önce zaten kaydedilmişti.</div>':''}${r.warn?`<div class="msg warn">Belge uyarısı: ${esc(r.warn)}. İK ile görüş.</div>`:''}</div>`,`<button class="btn p" data-act="close">Tamam</button>`)}
- catch(e){const m=trErr(e.message),help=e.html||(/hassas değil|uzakta/.test(m)?geoHelp(2):'');ui.lastQr=t;
+ catch(e){if(/Mesai yemeğini onaylamadan/.test(e.message||'')){delete D.meal;close();go('home');return toast('Önce mesai yemeğini onaylayın','Ana sayfadaki "Mesai yemeği" kartından onaylayıp QR\'ı tekrar okutun')}const m=trErr(e.message),help=e.html||(/hassas değil|uzakta/.test(m)?geoHelp(2):'');ui.lastQr=t;
   dlg('QR okutma','',`<div class="okbox"><div class="ring bad">${ic('x',44)}</div><b>Kaydedilemedi</b><span>${esc(m)}</span>${help?`<div class="msg warn" style="text-align:left;margin-top:8px">${help}</div>`:''}</div>`,`<button class="btn" data-act="close">Kapat</button><button class="btn p" data-act="qrretry">Tekrar dene</button>`)}}
 function qrRetry(){const t=ui.lastQr;close();if(t){sessionStorage.setItem('qr',t);doQr()}}
 function ackDlg(P){ui.ackP=P;ui.modal=[ackDlg,P];
@@ -2009,12 +2009,12 @@ WL.fm=()=>{const f=ui.fm||(ui.fm={day:'',code:''}),PH=need('ph',loadPH);
  <div class="tools" style="margin-top:10px"><span class="grow"></span><button class="btn p" data-act="fmsave">${ic('check',18)}Seçilenlere ${esc(f.code)} için fazla mesai izni ver</button></div></div>`+cur};
 
 /* İK: bugünün mesai yemeği onayı (Ana sayfa) */
-async function loadMeal(){if(!(can('personel')||S.me.role==='gm'))return null;const m=(await sb.from('ot_meal').select('*').eq('day',TODAY).maybeSingle()).data;if(!m)return null;
- const P=must(await sb.from('ot_permits').select('employee_id,project_code,created_at').eq('day',TODAY));const cut=new Date(TODAY+'T16:00:00+03:00');return{...m,list:P.filter(x=>new Date(x.created_at)<=cut)}}
-{const H=PAGE.home;PAGE.home=()=>{const M=need('meal',loadMeal);let card='';
- if(M&&!M.confirmed_at){const byP=new Map();M.list.forEach(x=>{if(!byP.has(x.project_code))byP.set(x.project_code,[]);byP.get(x.project_code).push(x)});
-  card=`<div class="card pad" style="border-left:4px solid var(--warn)"><div class="h" style="padding:0;margin-bottom:6px"><h2 style="margin:0">Mesai yemeği · bugün ${M.total} kişi</h2></div>${[...byP.entries()].map(([c,L])=>`<div style="margin:4px 0"><b>${esc(c)}</b> <small style="color:var(--ink3)">${esc(projName(c))}</small> · ${L.length} kişi<br><small>${esc(L.map(x=>nm(x.employee_id)).join(', '))}</small></div>`).join('')}
-  <div class="msg info" style="margin:8px 0">Çalıştığımız yemek şirketinden mesai yemeğini söyledikten sonra onaylayın; proje yöneticilerine ve mesaiye kalan personele bildirim gider.</div><button class="btn p" data-act="mealok">${ic('check',18)}Mesai yemeği söylendi, onayla</button></div>`}
+// Sorumlu: o gün gelen İK personeli; İK gelmediyse vekili. Onaylamadan QR ile çıkış yapamaz.
+async function loadMeal(){D.mealAt=Date.now();try{return await rpc('meal_todo')||null}catch{return null}}
+{const H=PAGE.home;PAGE.home=()=>{if(D.mealAt&&Date.now()-D.mealAt>180000)delete D.meal;const M=need('meal',loadMeal);let card='';
+ if(M){const byP=new Map();(M.list||[]).forEach(x=>{if(!byP.has(x.project_code))byP.set(x.project_code,{n:x.pname,L:[]});byP.get(x.project_code).L.push(x.name)});
+  card=`<div class="card pad" style="border-left:4px solid var(--warn)"><div class="h" style="padding:0;margin-bottom:6px"><h2 style="margin:0">Mesai yemeği · bugün ${M.total} kişi</h2></div>${[...byP.entries()].map(([c,o])=>`<div style="margin:4px 0"><b>${esc(c)}</b> <small style="color:var(--ink3)">${esc(o.n||'')}</small> · ${o.L.length} kişi<br><small>${esc(o.L.join(', '))}</small></div>`).join('')}
+  <div class="msg ${M.resp?'warn':'info'}" style="margin:8px 0">Çalıştığımız yemek şirketinden mesai yemeğini söyledikten sonra onaylayın; proje yöneticilerine ve mesaiye kalan personele bildirim gider.${M.resp?' <b>Onaylamadan QR ile çıkış yapamazsınız.</b>':''}</div><button class="btn p" data-act="mealok">${ic('check',18)}Mesai yemeği söylendi, onayla</button></div>`}
  return card+H()}}
 
 Object.assign(A,{
