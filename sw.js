@@ -1,5 +1,5 @@
 // Uygulama dosyaları önce ağdan, ağ yoksa önbellekten gelir. Veri istekleri hiç önbelleğe alınmaz.
-const CACHE = "defas-portal-v37";
+const CACHE = "defas-portal-v38";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest", "assets/logo.png", "assets/icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -11,7 +11,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== "GET" || u.origin !== location.origin) return;
-  e.respondWith(fetch(e.request).then((r) => {
+  e.respondWith(fetch(e.request, { cache: "no-cache" }).then((r) => {
     const copy = r.clone();
     caches.open(CACHE).then((c) => c.put(e.request, copy));
     return r;
