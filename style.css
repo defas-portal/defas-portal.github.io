@@ -129,3 +129,40 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.tw{overflow-x:auto
 .nav .grp.open>.gi{display:flex}
 .nav button.sub{padding:8px 10px}
 @media (prefers-reduced-motion:reduce){.nav .gh .car{transition:none}}
+/* DEFAS TİREK karşılama ekranı */
+.login.tw{padding:0;align-items:stretch;justify-content:stretch;background:#11171b}
+.tw-hero{flex:1.1;position:relative;overflow:hidden;color:#efe9dc;display:flex;flex-direction:column;justify-content:center;padding:56px 64px;background:radial-gradient(1100px 600px at 20% 10%,#1d2a33 0%,#11171b 60%)}
+.tw-hero::after{content:"";position:absolute;right:-120px;bottom:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(43,108,176,.28),transparent 70%)}
+.tw .tem{fill:#efe9dc;display:block}
+.tw .tem.big{width:118px;height:auto;margin-bottom:34px}
+.tw .tem .t1{animation:twDrop .7s cubic-bezier(.2,.8,.2,1) both .15s}
+.tw .tem .t2{transform-origin:90px 158px;animation:twRise .7s cubic-bezier(.2,.8,.2,1) both .35s}
+.tw .tem .t3{animation:twFade .6s ease both}
+@keyframes twDrop{from{transform:translateY(-40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes twRise{from{transform:scaleY(0);opacity:0}to{transform:none;opacity:1}}
+@keyframes twFade{from{opacity:0}to{opacity:1}}
+.tw-greet{font-size:18px;color:#9fb3c6;animation:twUp .7s ease both .6s}
+.tw-name{font-size:56px;font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:6px 0 0;color:#efe9dc;animation:twUp .7s ease both .75s}
+.tw-name b{color:#8fb6ea}
+.tw-slogan{font-size:24px;font-weight:700;margin:16px 0 0;animation:twUp .7s ease both .9s}
+.tw-quote{font-size:15px;color:#9aa3ae;margin:6px 0 0;max-width:420px;animation:twUp .7s ease both 1s}
+.tw-feat{list-style:none;padding:0;margin:34px 0 0;display:flex;flex-direction:column;gap:12px;animation:twUp .7s ease both 1.15s}
+.tw-feat li{display:flex;align-items:center;gap:12px;font-size:15px;color:#d8d2c6}
+.tw-feat i{font-style:normal;width:32px;height:32px;border-radius:9px;background:rgba(239,233,220,.08);border:1px solid rgba(239,233,220,.14);display:grid;place-items:center;color:#8fb6ea;font-weight:700}
+.tw-logo{position:relative;z-index:1;margin-top:40px;width:170px;background:#fff;border-radius:10px;padding:8px 12px;align-self:flex-start;animation:twUp .7s ease both 1.3s}
+@keyframes twUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+.login.tw .lbox{flex:none;width:480px;max-width:none;border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;padding:48px 52px;background:var(--card);overflow:auto}
+.tw-h{font-size:26px;font-weight:800;text-align:left}
+.login.tw .lbox>p{text-align:left;margin:4px 0 18px}
+.tw-mark{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font:800 13px/1 "Segoe UI",sans-serif;letter-spacing:.22em;color:var(--ink)}
+.tw-mark .tem{width:16px;height:17px;fill:var(--ink)}
+@media (max-width:860px){
+ .login.tw{flex-direction:column;min-height:100vh}
+ .tw-hero{flex:none;padding:34px 24px 30px}
+ .tw .tem.big{width:70px;margin-bottom:18px}
+ .tw-name{font-size:38px}.tw-slogan{font-size:19px;margin-top:10px}.tw-quote{font-size:13.5px}
+ .tw-feat{flex-direction:row;flex-wrap:wrap;gap:8px 14px;margin-top:18px}.tw-feat li{font-size:13px}.tw-feat i{width:26px;height:26px}
+ .tw-logo{display:none}
+ .login.tw .lbox{width:auto;padding:26px 20px 34px;border-radius:22px 22px 0 0;margin-top:-16px;position:relative;z-index:2;flex:1;justify-content:flex-start}
+}
+@media (prefers-reduced-motion:reduce){.tw *{animation:none!important}}
