@@ -149,7 +149,11 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.tw{overflow-x:auto
 .tw-feat{list-style:none;padding:0;margin:34px 0 0;display:flex;flex-direction:column;gap:12px;animation:twUp .7s ease both 1.15s}
 .tw-feat li{display:flex;align-items:center;gap:12px;font-size:15px;color:#d8d2c6}
 .tw-feat i{font-style:normal;width:32px;height:32px;border-radius:9px;background:rgba(239,233,220,.08);border:1px solid rgba(239,233,220,.14);display:grid;place-items:center;color:#8fb6ea;font-weight:700}
-.tw-logo{position:relative;z-index:1;margin-top:40px;width:170px;background:#fff;border-radius:10px;padding:8px 12px;align-self:flex-start;animation:twUp .7s ease both 1.3s}
+.tw-site{position:relative;z-index:1;margin-top:40px;align-self:flex-start;display:flex;align-items:center;gap:14px;padding:8px 18px 8px 8px;border-radius:14px;background:rgba(239,233,220,.06);border:1px solid rgba(239,233,220,.14);color:#efe9dc;text-decoration:none;transition:background .2s,transform .2s;animation:twUp .7s ease both 1.3s}
+.tw-site:hover{background:rgba(239,233,220,.12);transform:translateY(-2px)}
+.tw-site span{display:block;font-weight:700;font-size:15px}.tw-site small{display:block}.tw-site b{color:#8fb6ea;transition:transform .2s;display:inline-block}.tw-site:hover b{transform:translate(2px,-2px)}
+.tw-site small{font-weight:400;font-size:12px;color:#9aa3ae;margin-top:2px}
+.tw-logo{width:150px;background:#fff;border-radius:10px;padding:8px 12px}
 @keyframes twUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
 .login.tw .lbox{flex:none;width:480px;max-width:none;border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;padding:48px 52px;background:var(--card);overflow:auto}
 .tw-h{font-size:26px;font-weight:800;text-align:left}
@@ -162,7 +166,41 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.tw{overflow-x:auto
  .tw .tem.big{width:70px;margin-bottom:18px}
  .tw-name{font-size:38px}.tw-slogan{font-size:19px;margin-top:10px}.tw-quote{font-size:13.5px}
  .tw-feat{flex-direction:row;flex-wrap:wrap;gap:8px 14px;margin-top:18px}.tw-feat li{font-size:13px}.tw-feat i{width:26px;height:26px}
- .tw-logo{display:none}
+ .tw-site{margin-top:16px;padding:6px 12px 6px 6px;gap:10px}.tw-site .tw-logo{width:92px;padding:5px 8px}.tw-site span{font-size:13px}.tw-site small{display:none}
  .login.tw .lbox{width:auto;padding:26px 20px 34px;border-radius:22px 22px 0 0;margin-top:-16px;position:relative;z-index:2;flex:1;justify-content:flex-start}
 }
 @media (prefers-reduced-motion:reduce){.tw *{animation:none!important}}
+
+/* DEFAS TİREK uygulama kabuğu: koyu markalı yan menü */
+.side{background:#11171b;border-right:0;color:#d8d2c6}
+.side .brand{display:flex;align-items:center;gap:12px;padding:20px 18px 16px;border-bottom:1px solid rgba(239,233,220,.08);cursor:pointer}
+.side .brand .tem{width:28px;height:auto;fill:#efe9dc;flex:none}
+.side .brand small{display:block;font-size:10.5px;letter-spacing:.34em;color:#8a96a3;font-weight:700;line-height:1}
+.side .brand b{display:block;font-size:21px;letter-spacing:.16em;color:#efe9dc;font-weight:800;line-height:1.15;margin-top:3px}
+.side .nav{padding:10px 10px 8px}
+.side .nav::-webkit-scrollbar{width:8px}.side .nav::-webkit-scrollbar-thumb{background:rgba(239,233,220,.12);border-radius:8px}
+.side .nav button{color:#b9c1ca;border-radius:9px}
+.side .nav button:hover{background:rgba(239,233,220,.06);color:#efe9dc}
+.side .nav button.on{background:rgba(143,182,234,.15);color:#fff;font-weight:600;box-shadow:inset 3px 0 0 #8fb6ea}
+.side .nav .sec,.side .nav .gh{color:#6f7a86}
+.side .nav .gh:hover{color:#efe9dc;background:rgba(239,233,220,.05)}
+.side .nav .gh .car{color:#6f7a86}
+.side .nav .gi{border-left-color:rgba(239,233,220,.1)}
+.side .me{border-top:1px solid rgba(239,233,220,.08);padding:10px 12px 12px}
+.side .dlogo{display:block;width:118px;background:#fff;border-radius:8px;padding:5px 9px;margin:2px 6px 10px;opacity:.92}
+.side .who:hover{background:rgba(239,233,220,.06)}
+.side .who b{color:#efe9dc}.side .who small{color:#8a96a3}
+.side .av{background:#8fb6ea;color:#11171b}
+.top{box-shadow:0 1px 0 var(--line);border-bottom:0}
+.mbrand{display:none;align-items:center;gap:8px;cursor:pointer;flex:none}
+.mbrand .tem{width:20px;height:auto;fill:#efe9dc}
+.mbrand span{font:800 15px/1 "Segoe UI",sans-serif;letter-spacing:.12em;color:#9fb3c6}
+.mbrand b{color:#efe9dc}
+@media(max-width:860px){
+ .top{background:#11171b;color:#efe9dc;box-shadow:none}
+ .top .mbrand{display:flex}
+ .top h1{color:#c9d3dd;font-size:14px;text-align:right}
+ .top .bell{color:#efe9dc}.top .bell:hover{background:rgba(239,233,220,.08)}
+}
+.fgt{display:block;margin:12px auto 0;color:var(--blue);font-weight:600;font-size:14px;padding:6px 10px;border-radius:8px}.fgt:hover{background:var(--blue-l)}
+.fgo{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}.fgo b{font-size:15px}.fgo p{margin:6px 0 12px;color:var(--ink2);font-size:13.5px}
