@@ -1,5 +1,5 @@
 // Uygulama dosyaları önce ağdan, ağ yoksa önbellekten gelir. Veri istekleri hiç önbelleğe alınmaz.
-const CACHE = "defas-portal-v36";
+const CACHE = "defas-portal-v37";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest", "assets/logo.png", "assets/icon-192.png"];
 
 self.addEventListener("install", (e) => {
