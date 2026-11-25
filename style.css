@@ -210,4 +210,4 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.tw{overflow-x:auto
 .ins{list-style:none;padding:0;margin:4px 0 14px;display:flex;flex-direction:column;gap:10px}
 .ins li{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.4}
 .ins i{flex:none;font-style:normal;width:26px;height:26px;border-radius:50%;background:#11171b;color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
-.ins .ik{display:inline-block;padding:0 6px;border:1px solid var(--line,#cfd6de);border-radius:6px;font-size:13px}
+.ins .ik{display:inline-block;padding:0 6px;border:1px solid var(--line,#cfd6de);border-radius:6px;font-size:13px}.kv p,.kv li{text-align:left}.kv h4{margin:12px 0 4px;font-size:13px}.kv ul{margin:4px 0;padding-left:18px}
