@@ -63,7 +63,7 @@ const TABS=[['boss','Yönetim özeti','Genel','Patron paneli: bugün, projeler, 
 const tabPerms=tabs=>{const T=new Set(tabs||[]),o=[];if(['people','matrix','expiry'].some(k=>T.has(k)))o.push('personel');if(T.has('puantaj'))o.push('puantaj');if(T.has('plist'))o.push('proje');if(T.has('settings'))o.push('ayar');if(T.has('qrsites'))o.push('qr');if(T.has('equip'))o.push('depo');if(['tasks','jpanel','jrep'].some(k=>T.has(k)))o.push('gorev');return o};
 const myGroup=()=>S.me&&(S.groups||[]).find(g=>g.id===S.me.group_id);
 const can=p=>!!S.me&&(S.me.role==='gm'||(S.me.perms||[]).includes(p)||tabPerms(myGroup()?.tabs).includes(p));
-const tabOk=k=>k==='home'||k==='news'||S.me.role==='gm'||!myGroup()||myGroup().tabs.includes(k);
+const tabOk=k=>k==='home'||k==='news'||S.me.role==='gm'||(k==='fm'&&S.me.role==='mgr')||!myGroup()||myGroup().tabs.includes(k);
 const leads=()=>S.me.role!=='w'||tabOk('today')&&!!myGroup()||can('personel')||can('puantaj')||S.people.some(p=>p.manager_id===S.me.id&&p.status!=='ayrildi');
 const wdOf=s=>S.workDays.find(w=>w.dow===dow(s));
 const holOf=s=>S.hol.get(s);
@@ -106,7 +106,7 @@ function navs(){const L=[],sec=t=>L.push(['§',t]),me=S.me.id,mg=isMgr(),apN=job
  const bk=[];if(mg||apN||(D.tasks||[]).some(t=>t.approver_id===me))bk.push(['japp','İş onayı','check',apN]);
  if(mg)bk.push(['jpanel','Görev paneli','chart'],['tasks','Görevler','list'],['jrep','Görev raporu','chart']);
  if(bk.length){sec('Bakım ve görevler');L.push(...bk)}
- const hr=[];if(leads())hr.push(['today','Yoklama','check']);if(can('personel'))hr.push(['people','Personel','users'],['matrix','Belge matrisi','doc'],['expiry','Belge takibi','shield']);if(can('puantaj'))hr.push(['puantaj','Puantaj','cal']);if(can('personel'))hr.push(['vehicles','Şirket araçları','folder']);
+ const hr=[];if(leads())hr.push(['today','Yoklama','check']);if(can('personel'))hr.push(['people','Personel','users'],['matrix','Belge matrisi','doc'],['expiry','Belge takibi','shield']);if(can('puantaj'))hr.push(['puantaj','Puantaj','cal']);if(can('personel'))hr.push(['vehicles','Şirket araçları','folder']);if(S.me.role==='mgr'&&!can('proje'))hr.push(['fm','Fazla mesai izni','clock']);
  if(hr.length){sec('Personel ve puantaj');L.push(...hr)}
  if(FEATURES.equip&&can('depo')){sec('Depo ve zimmet');L.push(['equip','Ekipmanlar','folder'])}
  if(can('proje')){sec('Proje');L.push(['plist','Çalışma listesi','folder',D.planN||''])}
@@ -121,8 +121,16 @@ function navTree(nv,v){const G=[];let cur=null;nv.forEach(x=>{if(x[0]==='§'){cu
  const btn=(x,sub)=>`<button class="${v===x[0]?'on':''}${sub?' sub':''}" data-go="${x[0]}">${ic(x[2])}${x[1]}${x[3]?`<span class="n">${x[3]}</span>`:''}</button>`;
  return G.map(g=>{if(!g.t)return g.items.map(x=>btn(x)).join('');if(g.items.length===1)return btn(g.items[0]);const act=g.items.some(x=>x[0]===v),op=act||(st[g.t]??g.t==='Benim işlerim'),badge=g.items.reduce((s,x)=>s+(+x[3]||0),0);
   return`<div class="grp${op?' open':''}"><button class="gh" data-act="navsec" data-k="${esc(g.t)}" aria-expanded="${op}"><span class="car" aria-hidden="true">›</span>${esc(g.t)}${!op&&badge?`<span class="n">${badge}</span>`:''}</button><div class="gi">${g.items.map(x=>btn(x,1)).join('')}</div></div>`}).join('')}
-const TITLES={news:'Duyurular',vehicles:'Şirket araçları',equip:'Ekipmanlar ve zimmet',myeq:'Zimmetim',boss:'Yönetim özeti',perms:'Yetki ekranı',jobs:'Görevlerim',japp:'İş onayı',jpanel:'Görev paneli',tasks:'Görevler',qrsites:'QR noktaları',jrep:'Görev raporu',forms:'Formlar',matrix:'Belge matrisi',home:'Ana sayfa',mytime:'Puantajım',today:'Yoklama',people:'Personel',expiry:'Belge takibi',puantaj:'Puantaj',plist:'Proje çalışma listesi',mydocs:'Belgelerim',settings:'Ayarlar',notif:'Bildirimler'};
+const TITLES={fm:'Fazla mesai izni',news:'Duyurular',vehicles:'Şirket araçları',equip:'Ekipmanlar ve zimmet',myeq:'Zimmetim',boss:'Yönetim özeti',perms:'Yetki ekranı',jobs:'Görevlerim',japp:'İş onayı',jpanel:'Görev paneli',tasks:'Görevler',qrsites:'QR noktaları',jrep:'Görev raporu',forms:'Formlar',matrix:'Belge matrisi',home:'Ana sayfa',mytime:'Puantajım',today:'Yoklama',people:'Personel',expiry:'Belge takibi',puantaj:'Puantaj',plist:'Proje çalışma listesi',mydocs:'Belgelerim',settings:'Ayarlar',notif:'Bildirimler'};
 const PAGE={};
+/* 1 Aralık 2026 · TİREK'in ilk günü: kişi başına bir kez konfeti + karşılama (sonra kendiliğinden kapanır) */
+function party(){const k='tirek-ilkgun-'+(S.me?.id||'');if(party.on||(!/[?&]kutlama=1/.test(location.search)&&LS.get(k)))return;party.on=1;LS.set(k,'1');
+ const ad=String(S.me?.full_name||'').split(' ')[0],ad2=ad?ad.charAt(0)+ad.slice(1).toLocaleLowerCase('tr'):'';
+ const o=document.createElement('div');o.className='party';o.innerHTML=`<canvas></canvas><div class="pbox" role="dialog" aria-label="TİREK'e hoş geldiniz"><div class="pem">🎉</div><h2>Hoş geldin${ad2?', '+esc(ad2):''}!</h2><p><b>Bugün büyük gün.</b> TİREK artık hepimizin. Giriş-çıkışını QR ile yap, izin ve avansını telefondan iste, duyuruları ilk sen gör.</p><p class="psm">İlk QR'ını okutmayı unutma · İşin taşıyıcısı.</p><button class="btn p" data-pclose="1">Hadi başlayalım 🚀</button></div>`;document.body.append(o);
+ const cv=o.querySelector('canvas'),cx=cv.getContext('2d'),W=()=>cv.width=innerWidth,H=()=>cv.height=innerHeight;W();H();const C=['#f2b632','#8fb6ea','#1f8a5b','#e4572e','#ffffff','#c084fc'];
+ const P=Array.from({length:160},()=>({x:Math.random()*cv.width,y:-20-Math.random()*cv.height,w:6+Math.random()*8,h:8+Math.random()*10,c:C[Math.random()*C.length|0],v:2+Math.random()*3.5,r:Math.random()*6,s:(Math.random()-.5)*.25,d:(Math.random()-.5)*1.2}));
+ let t0=performance.now(),run=true;const step=t=>{if(!run)return;cx.clearRect(0,0,cv.width,cv.height);P.forEach(p=>{p.y+=p.v;p.x+=p.d+Math.sin((t+p.r*300)/500);p.r+=p.s;if(p.y>cv.height+20&&t-t0<6000){p.y=-20;p.x=Math.random()*cv.width}cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.c;cx.fillRect(-p.w/2,-p.h/2,p.w,p.h);cx.restore()});requestAnimationFrame(step)};requestAnimationFrame(step);
+ const close=()=>{run=false;o.classList.add('out');setTimeout(()=>o.remove(),400)};o.addEventListener('click',e=>{if(e.target.dataset.pclose||e.target===o)close()});setTimeout(close,15000)}
 function render(){
  if(!sb){$('#root').innerHTML=`<div class="login"><div class="lbox"><img src="assets/logo.png" alt="DEFAS Mühendislik"><p>Kurulum bekleniyor: config.js dosyasına Supabase bilgileri girilmeli.</p></div></div>`;return}
  if(!S.me){$('#root').innerHTML=S.reg?regPage():loginPage();return}
@@ -132,6 +140,7 @@ function render(){
  if(S.kvkk&&!S.kvkk.ok){$('#root').innerHTML=kvkkPage();return}
   if(S.me.status==='aday'||S.me.portal_wait){$('#root').innerHTML=gatePage();hydrate();return}
  if(S.kioskTimer){clearInterval(S.kioskTimer);S.kioskTimer=null}
+ if(TODAY==='2026-12-01'||/[?&]kutlama=1/.test(location.search))setTimeout(party,400);
  const nv=navs(),n=nv.filter(x=>x[0]!=='§');if(!S.view||(!n.some(x=>x[0]===S.view)&&S.view!=='notif'))S.view=n[0][0];
  const v=S.view,un=S.notifs.filter(x=>!x.read).length,mob=n.slice(0,4),me=S.me;
  const keep=$('.page')?scrollY:0,same=render.last===v;render.last=v;
@@ -465,6 +474,7 @@ const wlPeople=()=>S.people.filter(p=>p.on_worklist&&p.status!=='ayrildi').sort(
 const WL_HEAD=['Kod','PERSONEL','PROJE KODU','Mesai Türü','Süre (saat)','TARİH'];
 const wlRow=e=>['',e.employee_name,e.project_code,e.kind,+e.hours||'',dmy(e.day)];
 
+PAGE.fm=()=>WL.fm();
 PAGE.plist=()=>{const t=ui.wt||'giris';return`<div class="seg">${[['giris','Liste girişi'],['fm','Fazla mesai izni'],['onay','Onay'+(D.planN?' ('+D.planN+')':'')],['projeler','Projeler'],['yeni','Yeni proje kodu'],['gecmis','Geçmiş ve adam-saat']].map(([k,l])=>`<button class="${t===k?'on':''}" data-act="wt" data-k="${k}">${l}</button>`).join('')}</div>`+WL[t]()};
 const WL={};
 
@@ -784,11 +794,16 @@ PAGE.forms=()=>{const F=need('forms',loadForms),me=S.me.id;if(F===undefined)retu
  <div class="card">${list.map(row).join('')||'<div class="empty">Form yok</div>'}</div>
  <div class="sample">Form PDF olarak yöneticinize gider. Her onaycı sırayla onaylar; son onaydan sonra form İK & Muhasebe'ye e-postayla iletilir. Onaylanan tam günlük izinler puantaja kendiliğinden işlenir.</div>`};
 
-function newFormDlg(k){ui.modal=[newFormDlg,k];const me=S.me,LI=D['leave:'+me.id];let body='';
+// İzin kuralı (01.12.2026): personel izni en geç bir önceki gün 23:00'e kadar girer; bugüne / geç kalan yarına izni sadece yöneticiler girebilir.
+const lvBoss=()=>!!S.me&&(S.me.role!=='w'||S.people.some(p=>p.manager_id===S.me.id&&p.status!=='ayrildi'));
+const lvMin=()=>{if(lvBoss())return TODAY;const h=+new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Istanbul',hour:'2-digit',hourCycle:'h23'}).format(new Date());return add(TODAY,h>=23?2:1)};
+const LV_LATE='Bugün için (ya da saat 23:00\'ten sonra yarın için) izin girilemez. Lütfen yöneticinize sözlü olarak başvurun.';
+function newFormDlg(k){ui.modal=[newFormDlg,k];const me=S.me,LI=D['leave:'+me.id],mn=lvMin();let body='';
  if(k==='izin')body=`<label class="f">İzin türü<select class="inp" name="type">${opts(Object.entries(LEAVE),'','Seçin')}</select></label>${LI?`<div class="msg info">Kalan yıllık izin: <b>${LI.balance} gün</b>${LI.pending?` (${LI.pending} gün onay bekliyor)`:''}</div>`:''}
+  ${lvBoss()?'':`<div class="msg warn">İzin en geç <b>bir önceki gün saat 23:00'e kadar</b> girilir. Bugün için izin gerekiyorsa <b>yöneticinize sözlü olarak başvurun</b>.</div>`}
   <label class="f">İzin şekli<select class="inp" name="unit" data-lv="1"><option value="">Seçin</option><option value="gun">Gün (tam gün / birden fazla gün)</option><option value="saat">Saat (gün içinde birkaç saat)</option></select></label>
-  <div id="lvgun" class="three" style="display:none"><label class="f">Başlangıç<input class="inp" type="date" name="start" min="${TODAY}" data-lv="1"></label><label class="f">Bitiş<input class="inp" type="date" name="end" min="${TODAY}" data-lv="1"></label><label class="f">İşbaşı tarihi<input class="inp" type="date" name="back"></label></div>
-  <div id="lvsaat" class="three" style="display:none"><label class="f">Tarih<input class="inp" type="date" name="sday" min="${TODAY}" data-lv="1"></label><label class="f">Başlangıç saati<select class="inp" name="from" data-lv="1">${opts(Q15.map(t=>[t,t]),'','Seçin')}</select></label><label class="f">Bitiş saati<select class="inp" name="to" data-lv="1">${opts(Q15.map(t=>[t,t]),'','Seçin')}</select></label></div>
+  <div id="lvgun" class="three" style="display:none"><label class="f">Başlangıç<input class="inp" type="date" name="start" min="${mn}" data-lv="1"></label><label class="f">Bitiş<input class="inp" type="date" name="end" min="${mn}" data-lv="1"></label><label class="f">İşbaşı tarihi<input class="inp" type="date" name="back"></label></div>
+  <div id="lvsaat" class="three" style="display:none"><label class="f">Tarih<input class="inp" type="date" name="sday" min="${mn}" data-lv="1"></label><label class="f">Başlangıç saati<select class="inp" name="from" data-lv="1">${opts(Q15.map(t=>[t,t]),'','Seçin')}</select></label><label class="f">Bitiş saati<select class="inp" name="to" data-lv="1">${opts(Q15.map(t=>[t,t]),'','Seçin')}</select></label></div>
   <div class="msg info" id="lvsum">Hesaplanıyor…</div>
   <label class="f">Açıklama<input class="inp" name="note"></label><label class="f">İzin süresince ulaşılacak telefon<input class="inp" name="phone" type="tel"></label>`;
  if(k==='avans')body=`<div class="two"><label class="f">Avans türü<select class="inp" name="sub" data-av="1"><option value="">Seçin</option><option value="maas">Maaş avansı (maaştan tek seferde kesilir)</option><option value="is">İş avansı (şirket adına yaptığım harcamanın iadesi)</option></select></label><label class="f">Tutar (TL)<input class="inp" type="number" min="1" step="0.01" name="amount" data-av="1"></label></div>
@@ -835,6 +850,7 @@ async function sendForm(k){const me=S.me;let data={},sum=[['Personel',me.full_na
   if(saat&&(!val('sday')||!val('from')||!val('to')))throw new Error('İzin tarihini, başlangıç ve bitiş saatini seçin');if(!saat&&!val('back'))throw new Error('İşbaşı tarihini girin');
   if(saat)Object.assign(x,{start:val('sday'),end:val('sday'),back:val('sday'),from:val('from'),to:val('to')});else Object.assign(x,{start:val('start'),end:val('end'),back:val('back')});
   if(!x.start||!x.end||x.end<x.start)throw new Error('İzin tarihlerini kontrol edin');if(x.start<TODAY)throw new Error('Geçmiş tarihe izin girilemez. İzin en erken bugünden başlayabilir');
+  if(x.start<lvMin())throw new Error(LV_LATE);
   if(saat&&tm2m(x.to)<=tm2m(x.from))throw new Error('İzin bitiş saati başlangıçtan sonra olmalı');
   const am=leaveAmount();x.amount=am.days;if(saat)x.hours=Math.round(am.mins/60*100)/100;if(!(x.amount>0))throw new Error('Seçilen tarih / saatlerde çalışma süresi yok (hafta sonu, tatil veya mesai dışı)');if(x.type==='diger'&&!x.note)throw new Error('Açıklama yazın');
   const LI=D['leave:'+me.id];if(x.type==='yillik'&&LI&&x.amount>LI.balance-LI.pending&&!confirm(`Talep ettiğiniz ${fmtGun(x.amount)} gün, kalan yıllık izninizden (${fmtGun(LI.balance-LI.pending)}) fazla. Yine de gönderilsin mi?`))return;
@@ -2107,10 +2123,10 @@ Object.assign(A,{
 async function kvkkRepDlg(){ui.modal=[kvkkRepDlg];dlg('KVKK onayları','Çalışan KVKK Muvafakatnamesi · '+KVKK_VER,'<div class="empty">Yükleniyor…</div>','',true);
  const R=await rpc('kvkk_report')||[];D.kvkkr=R;if(!ui.modal||ui.modal[0]!==kvkkRepDlg)return;const ok=R.filter(x=>x.accepted_at).length;
  dlg('KVKK onayları','Çalışan KVKK Muvafakatnamesi · '+KVKK_VER,`<div class="grid g4" style="margin-bottom:10px"><div class="card stat"><small>Personel</small><b>${R.length}</b></div><div class="card stat"><small>Onayladı</small><b style="color:var(--ok)">${ok}</b></div><div class="card stat"><small>Onaylamadı</small><b style="color:var(--bad)">${R.length-ok}</b></div></div>
- <div class="tw" style="max-height:60vh"><table><thead><tr><th>Personel</th><th>Birim</th><th>Onay</th><th>Nerede</th></tr></thead><tbody>${R.map(x=>`<tr><td>${esc(x.full_name)}</td><td>${esc(x.dept||'')}</td><td>${x.accepted_at?esc(dmy(x.accepted_at))+' '+tm(x.accepted_at):'<span style="color:var(--bad)">Onaylamadı · ilk girişte istenecek</span>'}</td><td>${x.source==='kayit'?'Üye olurken':x.source==='giris'?'Girişte':''}</td></tr>`).join('')}</tbody></table></div>
- <div class="msg info" style="margin-top:10px">Onaylamayan personel sisteme bir sonraki girişinde metni onaylamadan devam edemez. Onay tarihi ve saati kayıt altındadır.</div>`,`<button class="btn" data-act="kvkkx">${ic('down',16)}Excel</button><span class="grow"></span><button class="btn p" data-act="close">Kapat</button>`,true)}
+ <div class="tw" style="max-height:60vh"><table><thead><tr><th>Personel</th><th>Birim</th><th>Onay</th><th>Nerede</th><th>IP adresi</th></tr></thead><tbody>${R.map(x=>`<tr><td>${esc(x.full_name)}</td><td>${esc(x.dept||'')}</td><td>${x.accepted_at?esc(dmy(x.accepted_at))+' '+tm(x.accepted_at):'<span style="color:var(--bad)">Onaylamadı · ilk girişte istenecek</span>'}</td><td>${x.source==='kayit'?'Üye olurken':x.source==='giris'?'Girişte':''}</td><td>${esc(x.ip||'')}</td></tr>`).join('')}</tbody></table></div>
+ <div class="msg info" style="margin-top:10px">Onaylamayan personel sisteme bir sonraki girişinde metni onaylamadan devam edemez. Onay tarihi, saati, IP adresi ve cihaz bilgisi kayıt altındadır; Excel'de hepsi bulunur.</div>`,`<button class="btn" data-act="kvkkx">${ic('down',16)}Excel</button><span class="grow"></span><button class="btn p" data-act="close">Kapat</button>`,true)}
 Object.assign(A,{kvkkrep(){kvkkRepDlg()},
- async kvkkx(){const R=D.kvkkr||[],EJ=await loadEJ(),wb=new EJ.Workbook();ejSheet(wb,'KVKK ONAYLARI',['Personel','Birim','Grup','Onay tarihi','Onay saati','Nerede onaylandı','Metin sürümü'],R.map(x=>[x.full_name,x.dept||'',x.emp_group||'',x.accepted_at?dmy(x.accepted_at):'ONAYLAMADI',x.accepted_at?tm(x.accepted_at):'',x.source==='kayit'?'Üye olurken':x.source==='giris'?'Girişte':'',KVKK_VER]),[26,18,14,13,10,16,14],{portrait:true});await ejSave(wb,`KVKK onaylari ${dmy(TODAY)}.xlsx`)}});
+ async kvkkx(){const R=D.kvkkr||[],EJ=await loadEJ(),wb=new EJ.Workbook();ejSheet(wb,'KVKK ONAYLARI',['Personel','Birim','Grup','Onay tarihi','Onay saati','Nerede onaylandı','Metin sürümü','IP adresi','Cihaz / tarayıcı'],R.map(x=>[x.full_name,x.dept||'',x.emp_group||'',x.accepted_at?dmy(x.accepted_at):'ONAYLAMADI',x.accepted_at?tm(x.accepted_at):'',x.source==='kayit'?'Üye olurken':x.source==='giris'?'Girişte':'',x.version||KVKK_VER,x.ip||'',x.user_agent||'']),[26,18,14,13,10,16,14,16,50]);await ejSave(wb,`KVKK onaylari ${dmy(TODAY)}.xlsx`)}});
 
 /* Vekil listesi: herkesin vekili olmalı (birim yöneticisi kendi birimini, İK / GM hepsini görür).
    Pozisyon vekili: pozisyonda kimse yoksa görevler vekil pozisyondaki kişiye geçici verilir. */
