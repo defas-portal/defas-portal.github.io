@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.defas.tirek",
+    "sha256_cert_fingerprints": ["99:93:26:E2:DA:10:11:95:56:9F:AB:15:39:8A:F7:46:02:7C:8A:93:5F:83:B7:8F:48:B8:27:F4:97:87:ED:12"]
+  }
+}]
