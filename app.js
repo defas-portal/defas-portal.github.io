@@ -342,7 +342,7 @@ PAGE.notif=()=>{const L=S.notifs,un=L.filter(n=>!n.read);if(un.length){sb.from('
 /* =====================================================================
    PERSONEL (İK)
    ===================================================================== */
-const reqFor=(t,p)=>{const g=(p?.emp_group||'').toLocaleLowerCase('tr');return g.includes('mavi')?(t.req_mavi??t.required):g.includes('beyaz')?(t.req_beyaz??t.required):t.required};
+const reqFor=(t,p)=>{if(p?.doc_exempt)return false;const g=(p?.emp_group||'').toLocaleLowerCase('tr');return g.includes('mavi')?(t.req_mavi??t.required):g.includes('beyaz')?(t.req_beyaz??t.required):t.required};
 const reqTypes=p=>S.docTypes.filter(t=>t.active&&reqFor(t,p));
 function empState(p,docs){if(p.status==='ayrildi')return pill(STAT.ayrildi);if(p.status==='aday'){const have=new Set(docs.filter(d=>d.employee_id===p.id).map(d=>d.doc_type_id)),R=reqTypes(p);return pill(['warn',`Aday · belge ${R.filter(t=>have.has(t.id)).length}/${R.length}`])}return p.block?pill(['bad','Çalışamaz']):pill(STAT.aktif)}
 PAGE.people=()=>{const E=need('emps',()=>all(()=>sb.from('employees').select('*').order('full_name'))),Dc=need('alldocs',()=>curDocs());if(E===undefined||Dc===undefined)return loading();
