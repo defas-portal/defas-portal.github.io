@@ -54,7 +54,7 @@ const ROLES={gm:'Genel yönetici',mgr:'Birim yöneticisi',w:'Çalışan'};
 const STAT={aday:['warn','Aday · belge bekliyor'],aktif:['ok','Aktif'],ayrildi:['gray','Ayrıldı']};
 const pill=([c,t])=>`<span class="pill ${c}">${esc(t)}</span>`;
 const pp=id=>S.people.find(p=>p.id===id);
-const nm=id=>pp(id)?.full_name||'—';
+const nm=id=>pp(id)?.full_name||S.names?.[id]||'—';
 // Yetki grubu: işaretli sekmeler menüyü, sekmelerden çıkan veri yetkileri veritabanı kurallarını belirler (SQL group_perms ile aynı)
 const TABS=[['boss','Yönetim özeti','Genel','Patron paneli: bugün, projeler, onaylar, uyarılar (yetkisi olan veriyi görür)'],['home','Ana sayfa','Genel','Kişinin kendi özeti'],['jobs','Görevlerim','Genel','Kendi bakım/görev işleri'],['forms','Formlar','Genel','İzin, avans, araç, kredi kartı formları'],['mytime','Puantajım','Genel','Kendi giriş-çıkış ve saatleri'],['mydocs','Belgelerim','Genel','Kendi belgeleri, sertifika yükleme'],
  ['japp','İş onayı','Bakım ve görevler','Kontrol edeni olduğu işleri onaylar'],['jpanel','Görev paneli','Bakım ve görevler','Biriminin görev özeti'],['tasks','Görevler','Bakım ve görevler','Biriminin görevlerini ekler, düzenler, yönlendirir'],['jrep','Görev raporu','Bakım ve görevler','Biriminin performans raporu'],
@@ -791,7 +791,9 @@ const FK={izin:'İzin talebi',avans:'Avans talebi',arac:'Araç talebi',kart:'Kre
 const LEAVE={yillik:'Yıllık izin',ucretsiz:'Ücretsiz izin',babalik:'Babalık izni',evlilik:'Evlilik izni',olum:'Ölüm izni',diger:'Diğer'};
 const FST={onayda:['warn','Onayda'],onaylandi:['ok','Onaylandı'],reddedildi:['bad','Reddedildi'],iptal:['gray','Geri çekildi'],kapandi:['ok','Kapandı']};
 const tl=n=>(+n||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})+' TL';
-const loadForms=()=>all(()=>sb.from('form_requests').select('*').gte('created_at',add(TODAY,-400)).order('created_at',{ascending:false}));
+// Formlarda isimler: personel kartını göremeyen onaycı (ör. yedek amir) için yalnız ad-soyad listesi
+const loadForms=async()=>{const r=await all(()=>sb.from('form_requests').select('*').gte('created_at',add(TODAY,-400)).order('created_at',{ascending:false}));
+ if(!S.names)try{S.names=Object.fromEntries(((await sb.rpc('emp_names')).data||[]).map(x=>[x.id,x.full_name]))}catch{S.names={}}return r};
 const workdaysBetween=(a,b)=>{let n=0;for(let d=a;d<=b;d=add(d,1))if(isWork(d))n++;return n};
 function formLine(r){const x=r.data;return r.kind==='izin'?`${LEAVE[x.type]||''} · ${dmy(x.start)} - ${dmy(x.end)} · ${x.amount} ${x.unit==='saat'?'saat':'gün'}`:r.kind==='avans'?`${x.sub==='is'?'İş avansı (masraf iadesi)':'Maaş avansı'} · ${tl(x.amount)}`:r.kind==='kart'?`${x.project||''} · ${(x.rows||[]).length} fiş · ${tl(x.total)}`:`${x.plate} · ${dmy(x.start)} - ${dmy(x.end)} · ${x.place||''}`}
 PAGE.forms=()=>{const F=need('forms',loadForms),me=S.me.id;if(F===undefined)return loading();const L=F||[],mine=L.filter(r=>r.employee_id===me),appr=L.filter(r=>myTurn(r,me)),hr=can('personel')||can('puantaj');
