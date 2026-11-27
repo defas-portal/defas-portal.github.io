@@ -81,7 +81,9 @@ async function all(q){let out=[],i=0;for(;;){const r=must(await q().range(i,i+99
 function need(k,fn){if(k in D)return D[k];if(!PEND[k])PEND[k]=fn().then(v=>{D[k]=v}).catch(e=>{D[k]=null;toast(trErr(e.message))}).finally(()=>{delete PEND[k];render()});return undefined}
 const drop=(...pre)=>Object.keys(D).forEach(k=>{if(pre.some(p=>k===p||k.startsWith(p+':')))delete D[k]});
 const loading=()=>'<div class="card empty">Yükleniyor…</div>';
-async function loadPeople(){S.people=await all(()=>sb.from('personel_ozet').select('*').order('full_name'))}
+// Google Play inceleme hesabı (google.inceleme@tirekdefas.com) listelerde, matriste ve uyarılarda görünmez
+const REVIEW_ID='2f59b9ff-2816-42d7-bfde-259babdfd2f1',isReviewAcct=p=>p?.id===REVIEW_ID;
+async function loadPeople(){S.people=(await all(()=>sb.from('personel_ozet').select('*').order('full_name'))).filter(p=>!isReviewAcct(p)||p.id===S.me?.id)}
 async function loadBase(){
  const me=await rpc('whoami');S.me=me&&(me.id||me.kiosk)?me:null;S.reg=null;if(!S.me){S.reg=await rpc('my_registration').catch(()=>null)||null;return}if(S.me.kiosk||S.me.status==='ayrildi')return;
  S.kvkk=await rpc('kvkk_status').catch(()=>({ok:true}));
@@ -267,7 +269,8 @@ async function xGorevSablonu(){const EJ=await loadEJ(),wb=new EJ.Workbook(),E=(a
  const lst='"'+[...new Set([...TASK_POS,...(S.positions||[]).map(p=>p.name)])].reduce((s,x)=>s.length+x.length<250?(s?s+','+x:x):s,'')+'"';for(let r=2;r<=E.length+1;r++)ws.getCell(r,5).dataValidation={type:'list',allowBlank:true,showErrorMessage:false,formulae:[lst]};
  await ejSave(wb,'DEFAS Görev Listesi Şablonu.xlsx');toast('Şablon indirildi','Sarı “Görev” sütununu doldurup Personel › Excel’den toplu aktar ile geri yükleyin')}
 const sgkTitle=e=>titleTr(String(e.sgk_code||'').replace(/^[\d.\s]+/,''));
-const noPos=E=>(E||[]).filter(e=>e.status==='aktif'&&(!e.position||(e.sgk_code&&norm(e.position)===norm(sgkTitle(e)))));
+// Görevi boş olanlar (görev SGK meslek adıyla aynı olabilir; örn. ENDÜSTRİYEL BORU MONTAJCISI — bu eksik sayılmaz)
+const noPos=E=>(E||[]).filter(e=>e.status==='aktif'&&!String(e.position||'').trim());
 function noPosMsg(E){const L=noPos(E);if(!L.length)return'';return`<div class="msg warn"><b>${L.length} kişinin firmadaki görevi girilmemiş</b> (kayıtta sadece SGK meslek adı var). Bakım görevleri ve çalışma listesi görev (unvan) ile eşleştiği için <button class="btn sm" data-act="xgorev">Görev listesi şablonunu indirin</button>, sarı “Görev” sütununu doldurup “Excel'den toplu aktar” ile geri yükleyin.<br><small>${L.slice(0,12).map(e=>esc(e.full_name)).join(', ')}${L.length>12?' …':''}</small></div>`}
 // Firmanın resmi görev (unvan) listesi: DEFAS Görev Listesi. [unvan, birim, çalışma listesinde görünür mü]
 const UNVANLAR=[['EKİPBAŞI','Proje',1],['UZMAN YARDIMCISI','Proje',1],['KAYNAKÇI','Proje',1],['FORMEN','Proje',1],['KIDEMLİ FORMEN','Proje',1],['PROJE MÜDÜRÜ','Proje',1],['İMALAT VE SAHA MÜHENDİSİ','Proje',1],['İMALAT VE SAHA YÖNETİCİSİ','Proje',1],['TEKNİK DESTEK VE PROJE SORUMLUSU','Proje',1],['ENDÜSTRİYEL BORU MONTAJCISI','Proje',1],['ENDÜSTRİYEL BORU UZMANI','Proje',1],['SATINALMA MÜDÜRÜ','Satın Alma',0],['SATINALMA VE TEKLİFLENDİRME YÖNETİCİSİ','Satın Alma',0],['DEPO SORUMLUSU','Satın Alma',0],['STOK KONTROL UZMANI','Satın Alma',0],['GENEL MÜDÜR','İK & Muhasebe',0],['MUHASEBE VE FİNANSMAN MÜDÜRÜ','İK & Muhasebe',0],['ÖN MUHASEBECİ','İK & Muhasebe',0],['İNSAN KAYNAKLARI UZMANI','İK & Muhasebe',0],['MEYDANCI','İK & Muhasebe',0],['TEMİZLİK GÖREVLİSİ','İK & Muhasebe',0]];
@@ -315,7 +318,7 @@ const docInfo=d=>[d.doc_no?'No '+esc(d.doc_no):'',d.issue_date?'Tarih '+esc(dmy(
 function docPill(t,d,p){if(!d)return reqFor(t,p||S.me)?pill(['bad','Eksik']):pill(['gray','Yok']);if(d.indefinite)return pill(['ok','Süresiz']);if(d.expiry_date){const n=diff(d.expiry_date,TODAY);if(n<0)return pill(['bad','Süresi doldu']);if(n<=Math.max(30,...(t.remind_days||[30])))return pill(['warn',left(d.expiry_date)])}return pill(['ok','Tamam'])}
 
 /* YOKLAMA */
-PAGE.today=()=>{const B=need('board:'+TODAY,()=>rpc('today_board',{d:TODAY}));if(B===undefined)return loading();
+PAGE.today=()=>{const B=need('board:'+TODAY,()=>rpc('today_board',{d:TODAY}).then(B=>(B||[]).filter(x=>!isReviewAcct(x))));if(B===undefined)return loading();
  const dep=ui.tdep||'',L=(B||[]).filter(x=>!dep||x.dept===dep),kind=x=>x.first_in?'in':x.projects?'site':['Y','R','U','M'].includes(x.code)?'leave':'out';
  const G={out:L.filter(x=>kind(x)==='out'),in:L.filter(x=>kind(x)==='in'),site:L.filter(x=>kind(x)==='site'),leave:L.filter(x=>kind(x)==='leave')},deps=[...new Set((B||[]).map(x=>x.dept))];
  const row=x=>`<div class="row"><span class="av" style="background:${kind(x)==='out'?'var(--bad)':kind(x)==='in'?'var(--ok)':'var(--blue)'}">${init(x.full_name)}</span><span class="t"><b>${esc(x.full_name)}</b><small>${esc(x.dept)}${x.position?' · '+esc(x.position):''}${x.manager_id?' · Yönetici: '+esc(nm(x.manager_id)):''}</small></span>${kind(x)==='in'?pill(['ok',`${tm(x.first_in)}${x.last_out?' - '+tm(x.last_out):''}`]):kind(x)==='site'?pill(['info','Sahada · '+x.projects]):kind(x)==='leave'?pill(CODES[x.code]):pill(['bad','Giriş yok'])}</div>`;
@@ -439,7 +442,7 @@ const loadPH=()=>all(()=>sb.from('project_hours').select('*').order('code')).the
 
 /* ---------- Yönetim özeti (patron paneli): tek ekranda bugün, projeler, onaylar, uyarılar, bu ay ---------- */
 const BOSS_KEYS=()=>['staff','board:'+TODAY,'ph','forms','att:'+ymOf(TODAY),'streaks','pendocs','regs','boss:exp','boss:mail','orders'];
-PAGE.boss=()=>{const m=ymOf(TODAY),me=S.me.id,B=need('board:'+TODAY,()=>rpc('today_board',{d:TODAY})),PH=need('ph',loadPH),F=need('forms',loadForms),A=need('att:'+m,()=>att(null,m)),
+PAGE.boss=()=>{const m=ymOf(TODAY),me=S.me.id,B=need('board:'+TODAY,()=>rpc('today_board',{d:TODAY}).then(B=>(B||[]).filter(x=>!isReviewAcct(x)))),PH=need('ph',loadPH),F=need('forms',loadForms),A=need('att:'+m,()=>att(null,m)),
   ST=need('streaks',loadStreaks),PD=need('pendocs',loadPend),RG=need('regs',()=>rpc('pending_registrations').catch(()=>[])),O=need('orders',loadOrders),
   X=need('boss:exp',()=>all(()=>sb.from('employee_docs').select('employee_id,doc_type_id,expiry_date').eq('replaced',false).eq('verified',true).not('expiry_date','is',null).lte('expiry_date',add(TODAY,30)).order('expiry_date'))),
   MO=need('boss:mail',()=>Promise.resolve(sb.from('mail_outbox').select('id',{count:'exact',head:true}).eq('status','hata')).then(r=>r?.count||0).catch(()=>0));
